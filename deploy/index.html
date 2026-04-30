@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Deploy · job-platform-web</title>
+    <style>
+      :root {
+        --bg: #1a1025;
+        --card: #251533;
+        --border: #3d2a4f;
+        --text: #f4ebff;
+        --muted: #b39fc9;
+        --accent: #c4b5fd;
+        --accent-dim: #8b5cf633;
+        --sans: ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+        --mono: ui-monospace, "SF Mono", Menlo, monospace;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: var(--sans);
+        background: radial-gradient(ellipse 120% 80% at 70% -15%, #4c1d95 0%, var(--bg) 50%);
+        color: var(--text);
+        line-height: 1.6;
+        min-height: 100vh;
+      }
+      .wrap {
+        max-width: 52rem;
+        margin: 0 auto;
+        padding: 2.5rem 1.25rem 4rem;
+      }
+      header {
+        margin-bottom: 2rem;
+      }
+      .badge {
+        display: inline-block;
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--accent);
+        background: var(--accent-dim);
+        padding: 0.35rem 0.65rem;
+        border-radius: 999px;
+        margin-bottom: 0.75rem;
+      }
+      h1 {
+        font-size: clamp(1.75rem, 4vw, 2.25rem);
+        font-weight: 700;
+        margin: 0 0 0.5rem;
+        letter-spacing: -0.02em;
+      }
+      .lead {
+        color: var(--muted);
+        font-size: 1.05rem;
+        margin: 0;
+      }
+      section {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 1.35rem 1.5rem;
+        margin-bottom: 1rem;
+      }
+      section h2 {
+        font-size: 1rem;
+        margin: 0 0 0.75rem;
+        color: var(--accent);
+        font-weight: 600;
+      }
+      p {
+        margin: 0 0 0.75rem;
+        color: var(--muted);
+      }
+      p:last-child {
+        margin-bottom: 0;
+      }
+      ul {
+        margin: 0;
+        padding-left: 1.2rem;
+        color: var(--muted);
+      }
+      li {
+        margin-bottom: 0.35rem;
+      }
+      code,
+      pre {
+        font-family: var(--mono);
+        font-size: 0.82rem;
+      }
+      pre {
+        background: #120818;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 1rem 1.1rem;
+        overflow-x: auto;
+        color: #ddd6fe;
+        margin: 0.5rem 0 0;
+      }
+      .critical {
+        border-left: 3px solid var(--accent);
+        padding-left: 0.85rem;
+        margin-top: 0.75rem;
+        color: #e9d5ff;
+        font-size: 0.92rem;
+      }
+      footer {
+        margin-top: 2rem;
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <span class="badge">Production</span>
+        <h1>job-platform-web</h1>
+        <p class="lead">
+          Static SPA built with Vite. The API URL is baked in at <strong>build time</strong> via environment variables.
+        </p>
+      </header>
+
+      <section>
+        <h2>Build</h2>
+        <p>Set the public API base URL (no trailing slash), then build:</p>
+        <pre><code># .env.production or CI env
+export VITE_API_BASE_URL=https://api.yourdomain.com
+
+npm ci
+npm run build</code></pre>
+        <p>Output lives in <code>dist/</code>. Deploy those files to any static host or object storage + CDN.</p>
+        <p class="critical">
+          <code>VITE_*</code> variables are inlined when you run <code>vite build</code>. Changing the API URL requires a <strong>new build</strong>, not just a host restart.
+        </p>
+      </section>
+
+      <section>
+        <h2>Docker (nginx + static <code>dist</code>)</h2>
+        <p>
+          The repo includes a multi-stage <code>Dockerfile</code>: Node builds the app; nginx serves <code>/usr/share/nginx/html</code> with SPA fallback (<code>docker/nginx.conf</code>). The container listens on port <strong>3008</strong>.
+        </p>
+        <pre><code>docker build \
+  --build-arg VITE_API_BASE_URL=https://api.yourdomain.com \
+  -t job-platform-web .
+
+docker run --rm -p 8080:3008 job-platform-web</code></pre>
+        <p>Open <code>http://localhost:8080</code>. Production builds must pass a real API URL as <code>VITE_API_BASE_URL</code>.</p>
+      </section>
+
+      <section>
+        <h2>Dokploy — Dockerfile application</h2>
+        <p>Use a <strong>Dockerfile</strong> deployment for this repo (not Docker Compose). Follow these steps in order:</p>
+        <ol style="margin: 0.75rem 0 0; padding-left: 1.25rem; color: var(--muted)">
+          <li style="margin-bottom: 0.65rem">
+            In Dokploy, create a new application and choose deployment type <strong>Dockerfile</strong> (build from Git).
+          </li>
+          <li style="margin-bottom: 0.65rem">
+            Point the application at <strong>this repository</strong> (<code>job-platform-web</code>). Dockerfile path: default <code>Dockerfile</code> at repo root unless your layout differs.
+          </li>
+          <li style="margin-bottom: 0.65rem">
+            Under build settings, add a <strong>build argument</strong>:
+            <code>VITE_API_BASE_URL</code> = your <strong>public API base URL</strong> — <strong>no trailing slash</strong>.
+            If visitors load this UI over <strong>HTTPS</strong>, this value <strong>must</strong> start with <code>https://</code>
+            (e.g. <code>https://api.yourdomain.com</code>). HTTP API URLs are blocked by the browser (mixed content). Change it → rebuild/redeploy the <strong>web</strong> image.
+          </li>
+          <li style="margin-bottom: 0.65rem">
+            Configure routing for your UI domain: expose / forward to container port <strong>3008</strong> (nginx listens on 3008 inside the image).
+          </li>
+          <li style="margin-bottom: 0.65rem">
+            On the <strong>API</strong> deployment (<code>job-platform-api</code>), set environment variable <code>APP_BASE_URL</code> to your <strong>exact frontend origin</strong> — the same scheme, host, and port users see in the browser for this UI (e.g.
+            <code>https://app.yourdomain.com</code>). That keeps <strong>CORS</strong> and <strong>session cookies</strong> aligned with the SPA.
+          </li>
+        </ol>
+        <p class="critical">
+          Redeploy the web image whenever the API URL changes — <code>VITE_*</code> is fixed at image build time.
+        </p>
+        <section style="margin-top: 1rem; padding: 1rem 1.25rem; background: var(--card); border: 1px solid var(--border); border-radius: 12px">
+          <h3 style="margin: 0 0 0.5rem; font-size: 0.95rem; color: var(--accent)">HTTPS checklist</h3>
+          <ol style="margin: 0; padding-left: 1.25rem; color: var(--muted); font-size: 0.9rem">
+            <li style="margin-bottom: 0.35rem">
+              Put TLS on your API host in Dokploy (domain + Let’s Encrypt on the <strong>api</strong> service, port <strong>4000</strong>).
+            </li>
+            <li style="margin-bottom: 0.35rem">
+              Set API env <code>API_PUBLIC_URL</code> to that same public HTTPS URL (no trailing slash). Set <code>APP_BASE_URL</code> to your SPA’s HTTPS origin (include <code>:3008</code> if it appears in the browser bar).
+            </li>
+            <li style="margin-bottom: 0">
+              Rebuild the SPA with build arg <code>VITE_API_BASE_URL=https://…</code> matching that API URL — then redeploy <strong>only after</strong> the API responds over HTTPS (try <code>curl -I https://api…</code>).
+            </li>
+          </ol>
+        </section>
+        <p style="margin-top: 1rem; color: var(--muted); font-weight: 600">502 Bad Gateway</p>
+        <ul style="margin: 0.35rem 0 0; padding-left: 1.25rem; color: var(--muted)">
+          <li style="margin-bottom: 0.4rem">
+            <strong>Wrong port:</strong> In Dokploy’s domain settings, the container port must be <strong>3008</strong> (where nginx listens). Not 5173, 80, or a random mapped port unless that map targets 3008.
+          </li>
+          <li style="margin-bottom: 0.4rem">
+            <strong>Traefik network:</strong> If the app container is not reachable from Traefik (same symptom as the API Compose stack), ensure it is attached to <code>dokploy-network</code> or add the label
+            <code>traefik.docker.network=dokploy-network</code> in Dokploy’s labels UI if your version supports it — see API <code>deploy/index.html</code> for context.
+          </li>
+          <li style="margin-bottom: 0.4rem">
+            <strong>Build failed:</strong> Open deploy logs; if the Vite build failed, the image may be invalid or nginx has nothing to serve.
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Align with the API</h2>
+        <ul>
+          <li>
+            On the API, set <code>APP_BASE_URL</code> to this site’s exact origin (e.g. <code>https://app.yourdomain.com</code>). Cookies and CORS depend on it.
+          </li>
+          <li>Use HTTPS in production for both SPA and API when handling sessions.</li>
+          <li>If you use preview URLs (e.g. Vercel previews), add them to the API’s <code>CORS_ORIGINS</code> or temporarily widen policy — see API README.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Hosting options</h2>
+        <ul>
+          <li><strong>Dokploy:</strong> see <strong>Dokploy — Dockerfile application</strong> above.</li>
+          <li><strong>Docker elsewhere:</strong> same image; pass <code>VITE_API_BASE_URL</code> at build time.</li>
+          <li><strong>Nginx / Caddy:</strong> serve <code>dist</code> with SPA fallback to <code>index.html</code> for client-side routes.</li>
+          <li><strong>Same origin:</strong> you can put the API behind a reverse proxy at <code>/api</code> — then you would point the SPA at that origin; today the client uses absolute <code>VITE_API_BASE_URL</code> (configure accordingly).</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Smoke test</h2>
+        <pre><code>npm run preview</code></pre>
+        <p>Runs a local server over <code>dist/</code> (still uses whatever API URL was embedded at build time).</p>
+      </section>
+
+      <footer>
+        Backend checklist (three processes + Postgres): see <strong>job-platform-api/deploy/</strong>.
+      </footer>
+    </div>
+  </body>
+</html>
